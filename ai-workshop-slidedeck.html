@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Workshop</title>
+  <style>
+:root {
+  --slide-width: 100vw;
+  --slide-height: 100vh;
+  --font-heading: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --color-bg: #022c22;
+  --color-surface: #1e293b;
+  --color-primary: #10b981;
+  --color-primary-light: #34d399;
+  --color-accent: #06b6d4;
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 2rem;
+  --spacing-lg: 3rem;
+  --spacing-xl: 4rem;
+  --radius: 12px;
+  --transition: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.deck {
+  width: 100%; height: 100%;
+  position: relative;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--spacing-xl);
+  opacity: 0;
+  transform: translateX(60px);
+  transition: opacity var(--transition), transform var(--transition);
+  pointer-events: none;
+  overflow-y: auto;
+}
+
+.slide.active {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.slide.prev {
+  opacity: 0;
+  transform: translateX(-60px);
+}
+
+.progress-bar {
+  position: fixed; bottom: 0; left: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
+  transition: width var(--transition);
+  z-index: 100;
+}
+
+.slide-counter {
+  position: fixed; bottom: var(--spacing-sm); right: var(--spacing-sm);
+  font-size: 0.85rem; color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  z-index: 100;
+}
+
+.deck.overview {
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  align-content: flex-start;
+}
+.deck.overview .slide-thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.deck.overview .slide-thumb::after {
+  content: attr(data-slide-num);
+  position: absolute;
+  top: 6px; right: 8px;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  padding: 2px 8px;
+  border-radius: 6px;
+  opacity: 0.8;
+  z-index: 10;
+  pointer-events: none;
+}
+.deck.overview .slide-thumb.active { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(16,185,129,0.3); }
+.deck.overview .slide-thumb:hover { border-color: var(--color-primary-light); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.deck.overview .slide {
+  position: absolute;
+  inset: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: top left;
+  opacity: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.keyboard-hint {
+  position: fixed; bottom: var(--spacing-sm); left: var(--spacing-sm);
+  font-size: 0.75rem; color: var(--color-text-muted);
+  opacity: 0.5; z-index: 100;
+  transition: opacity 0.3s;
+}
+.keyboard-hint:hover { opacity: 1; }
+
+@media print {
+  .slide {
+    position: relative !important;
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    page-break-after: always;
+    width: 100vw; height: 100vh;
+  }
+  .progress-bar, .slide-counter, .keyboard-hint { display: none !important; }
+  .deck.overview { display: block; }
+}
+
+/* --- Title slide --- */
+.slide-title {
+  text-align: center;
+  gap: var(--spacing-md);
+  background: radial-gradient(ellipse at 30% 50%, rgba(16,185,129,0.15), transparent 60%),
+              radial-gradient(ellipse at 70% 50%, rgba(6,182,212,0.1), transparent 60%);
+}
+.slide-title h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--color-text), var(--color-primary-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.1;
+}
+.slide-title .subtitle {
+  font-size: clamp(1.1rem, 2vw, 1.6rem);
+  color: var(--color-text-muted);
+  max-width: 600px;
+}
+.slide-title .meta {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+/* --- Content slide --- */
+.slide-content {
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+}
+.slide-content h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  font-weight: 700;
+  color: var(--color-primary-light);
+}
+.slide-content p, .slide-content li {
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  line-height: 1.7;
+  color: var(--color-text-muted);
+}
+.slide-content ul, .slide-content ol {
+  padding-left: var(--spacing-md);
+  display: flex; flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+/* --- Split slide --- */
+.slide-split {
+  flex-direction: row;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+}
+.slide-split .split-left,
+.slide-split .split-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+.slide-split h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.6rem, 2.5vw, 2.4rem);
+  font-weight: 700;
+  color: var(--color-primary-light);
+}
+.slide-split p, .slide-split li {
+  font-size: clamp(0.95rem, 1.3vw, 1.15rem);
+  line-height: 1.6;
+  color: var(--color-text-muted);
+}
+.slide-split ul {
+  padding-left: var(--spacing-md);
+  display: flex; flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+/* --- Code slide --- */
+.slide-code {
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  max-width: 960px;
+  width: 100%;
+}
+.slide-code h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+  color: var(--color-primary-light);
+}
+.slide-code pre {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--spacing-md);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: clamp(0.8rem, 1.2vw, 1rem);
+  line-height: 1.6;
+  color: var(--color-text);
+}
+.slide-code .keyword { color: #c084fc; }
+.slide-code .string { color: #34d399; }
+.slide-code .comment { color: #64748b; font-style: italic; }
+.slide-code .function { color: #60a5fa; }
+.slide-code .number { color: #fb923c; }
+
+/* --- Image slide --- */
+.slide-image {
+  padding: 0;
+  background-size: cover;
+  background-position: center;
+}
+.slide-image .image-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(2,44,34,0.95) 0%, rgba(2,44,34,0.6) 40%, transparent 70%);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--spacing-xl);
+}
+.slide-image h2 {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 700;
+}
+.slide-image p {
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  color: var(--color-text-muted);
+  max-width: 600px;
+}
+
+/* --- Custom styles --- */
+.highlight { color: var(--color-primary-light); font-weight: 600; }
+.warning { color: #f87171; font-weight: 600; }
+.link { color: var(--color-accent); text-decoration: underline; font-family: var(--font-mono); font-size: 0.9em; }
+.model-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+.model-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--spacing-sm);
+}
+.model-card h3 {
+  font-size: 1.1rem;
+  color: var(--color-primary-light);
+  margin-bottom: 0.3rem;
+}
+.model-card p {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+.tool-pill {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+.tool-pill.featured {
+  border-color: var(--color-primary);
+  color: var(--color-primary-light);
+  font-weight: 600;
+}
+.quote-block {
+  border-left: 4px solid var(--color-primary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(16,185,129,0.05);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.7;
+}
+.mcp-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+.mcp-item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+.mcp-item strong {
+  color: var(--color-primary-light);
+  display: block;
+  font-size: 0.95rem;
+}
+.mcp-item span {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+.idea-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+.idea-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--spacing-sm);
+}
+.idea-card h3 {
+  font-size: 1rem;
+  color: var(--color-primary-light);
+  margin-bottom: 0.3rem;
+}
+.idea-card p {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.resource-link {
+  display: block;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+.resource-link .label {
+  display: block;
+  color: var(--color-primary-light);
+  font-family: var(--font-body);
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+  font-size: 1rem;
+}
+  </style>
+</head>
+<body>
+  <div class="deck">
+
+    <!-- 1. Title -->
+    <section class="slide slide-image" style="background-image: url('https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1920&q=80')">
+      <div class="image-overlay" style="justify-content: center; align-items: center; text-align: center;">
+        <h2 style="font-size: clamp(3rem, 6vw, 5rem); font-weight: 800; background: linear-gradient(135deg, #f1f5f9, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Workshop</h2>
+        <p style="font-size: clamp(1.2rem, 2vw, 1.8rem); max-width: 700px; margin-top: 1rem;">Forstå AI-verktøy, modeller og hvordan du kan bruke dem i hverdagen</p>
+        <p style="font-size: 0.9rem; opacity: 0.6; margin-top: 1.5rem;">Fink &middot; 2026</p>
+      </div>
+    </section>
+
+    <!-- 2. Hva er AI -->
+    <section class="slide slide-content">
+      <h2>Hva er AI?</h2>
+      <p>Maskinl&aelig;ring handler om &eacute;n ting: <span class="highlight">gjette neste token</span></p>
+      <ul>
+        <li><strong>Transformers</strong> &mdash; arkitekturen bak alle moderne LLM-er</li>
+        <li><strong>Tokens</strong> &mdash; tekst delt opp i sm&aring; biter som modellen prosesserer</li>
+        <li><strong>Trening</strong> &mdash; mater modellen enorme mengder tekst, l&aelig;rer m&oslash;nstre</li>
+        <li><strong>Inferens</strong> &mdash; modellen gjetter &eacute;n token om gangen, basert p&aring; kontekst</li>
+      </ul>
+      <p style="margin-top: 1rem; font-size: 0.95rem;">
+        Utforsk: <span class="link">ig.ft.com/generative-ai</span> &middot; <span class="link">tiktokenizer.vercel.app</span>
+      </p>
+      <p style="font-size: 0.9rem; color: var(--color-text-muted); opacity: 0.7;">
+        Se ogs&aring;: 3Blue1Brown &mdash; &laquo;Neural Networks&raquo; p&aring; YouTube
+      </p>
+    </section>
+
+    <!-- 3. ML Curve & Overfitting -->
+    <section class="slide slide-split">
+      <div class="split-left">
+        <h2>Treningskurver &amp; Overfitting</h2>
+        <ul>
+          <li><strong>Underfitting</strong> &mdash; modellen er for enkel, l&aelig;rer ikke nok</li>
+          <li><strong>Sweet spot</strong> &mdash; generaliserer godt til ny data</li>
+          <li><strong>Overfitting</strong> &mdash; pugger treningsdata, feiler p&aring; nytt</li>
+        </ul>
+        <p>Jo mer parametre, jo lettere &aring; overfitte. Regularisering og validering holder modellen i sjakk.</p>
+      </div>
+      <div class="split-right" style="align-items: center;">
+        <svg viewBox="0 0 300 200" style="width: 100%; max-width: 400px;">
+          <rect fill="var(--color-surface)" rx="8" width="300" height="200"/>
+          <line x1="40" y1="170" x2="280" y2="170" stroke="var(--color-border)" stroke-width="1"/>
+          <line x1="40" y1="20" x2="40" y2="170" stroke="var(--color-border)" stroke-width="1"/>
+          <text x="160" y="195" fill="var(--color-text-muted)" font-size="10" text-anchor="middle">Modellkompleksitet</text>
+          <text x="15" y="95" fill="var(--color-text-muted)" font-size="10" text-anchor="middle" transform="rotate(-90,15,95)">Feil</text>
+          <!-- Training error -->
+          <path d="M50,50 Q120,45 170,60 Q220,75 270,140" fill="none" stroke="var(--color-primary)" stroke-width="2.5"/>
+          <text x="272" y="135" fill="var(--color-primary)" font-size="9">Trening</text>
+          <!-- Validation error -->
+          <path d="M50,80 Q120,55 160,50 Q200,52 230,70 Q260,100 270,45" fill="none" stroke="var(--color-accent)" stroke-width="2.5"/>
+          <text x="272" y="42" fill="var(--color-accent)" font-size="9">Validering</text>
+          <!-- Sweet spot -->
+          <line x1="160" y1="25" x2="160" y2="165" stroke="var(--color-primary-light)" stroke-width="1" stroke-dasharray="4,4"/>
+          <text x="160" y="18" fill="var(--color-primary-light)" font-size="9" text-anchor="middle">Sweet spot</text>
+          <!-- Labels -->
+          <text x="80" y="165" fill="var(--color-text-muted)" font-size="8" text-anchor="middle">Underfitting</text>
+          <text x="240" y="165" fill="var(--color-text-muted)" font-size="8" text-anchor="middle">Overfitting</text>
+        </svg>
+      </div>
+    </section>
+
+    <!-- 4. Empire of AI -->
+    <section class="slide slide-image" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1920&q=80')">
+      <div class="image-overlay">
+        <h2>Empire of AI</h2>
+        <p style="font-style: italic; margin-bottom: 0.5rem;">&laquo;Inside the reckless race for total domination&raquo;</p>
+        <p>Karen Hao dokumenterer kappel&oslash;pet mellom tech-gigantene &mdash; sikkerhet ofres for hastighet, og profitt trumfer forsiktighet.</p>
+      </div>
+    </section>
+
+    <!-- 5. Tanker rundt AGI -->
+    <section class="slide slide-content">
+      <h2>Tanker rundt AGI</h2>
+      <p>Kategorisering &#8594; Anta hva som mangler</p>
+      <div class="quote-block" style="margin-top: 0.5rem;">
+        <strong>Richard Sutton</strong> (Father of Reinforcement Learning):<br>
+        Veien til AGI ligger n&aelig;rmere hvordan et <span class="highlight">ekorn l&aelig;rer</span> enn kompleksiteten til mennesket. Vi fokuserer p&aring; feil sted &mdash; vi m&aring; se p&aring; likhetene med resten av dyrelivet, ikke det som skiller oss.
+      </div>
+      <p style="margin-top: 1rem;">Konsekvens: LLM-er kan v&aelig;re en <span class="warning">&laquo;dead-end&raquo;</span> p&aring; veien til AGI</p>
+    </section>
+
+    <!-- 6. Menneskelig interaksjon -->
+    <section class="slide slide-split">
+      <div class="split-left">
+        <h2>Bruk av LLM</h2>
+        <h2 style="font-size: 1.2rem; color: var(--color-primary);">Fordeler</h2>
+        <ul>
+          <li>Bygg forst&aring;else &mdash; still sp&oslash;rsm&aring;l!</li>
+          <li>Agentic coders forklarer kode godt</li>
+          <li>Akselererer repetitive oppgaver</li>
+        </ul>
+      </div>
+      <div class="split-right">
+        <h2 style="visibility: hidden;">_</h2>
+        <h2 style="font-size: 1.2rem; color: #f87171;">Ulemper</h2>
+        <ul>
+          <li><span class="warning">100% reliance</span> &mdash; v&aelig;r reflektert</li>
+          <li>Bruk <span class="highlight">skalpell, ikke hagle</span></li>
+          <li>Vage prompts &#8594; debugging-loop &#8594; sl&oslash;sing</li>
+          <li>Eksempler p&aring; agentic coding som slettet prod-databaser</li>
+        </ul>
+        <p style="margin-top: 0.5rem; font-size: 0.9rem;">Er AI ditt grensesnitt, eller er koden det?</p>
+      </div>
+    </section>
+
+    <!-- 7. LLM Modeller -->
+    <section class="slide slide-content">
+      <h2>LLM Modeller</h2>
+      <div class="model-grid">
+        <div class="model-card">
+          <h3>OpenAI &mdash; GPT-5</h3>
+          <p>Forbedret resonnering, kontekstforst&aring;else og probleml&oslash;sning</p>
+        </div>
+        <div class="model-card">
+          <h3>Anthropic &mdash; Sonnet 4.5 &amp; Opus 4.1</h3>
+          <p>Fokus p&aring; sikkerhet og n&oslash;yaktighet. Hjelpsom, harmløs, ærlig.</p>
+        </div>
+        <div class="model-card">
+          <h3>Google &mdash; Gemini 2.5</h3>
+          <p>Multimodal: tekst, bilder, lyd og video i ett</p>
+        </div>
+        <div class="model-card">
+          <h3>xAI &mdash; Grok 4</h3>
+          <p>Sanntid internett-tilgang, direkte stil, humor</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. Hvorfor Anthropic -->
+    <section class="slide slide-content">
+      <h2>Hvorfor Fink anbefaler Anthropic</h2>
+      <ul>
+        <li><span class="highlight">Utviklere f&oslash;rst</span> &mdash; historisk prioritert utvikleropplevelsen</li>
+        <li><span class="highlight">Sikkerhetsfokus</span> &mdash; grunnlagt av tidligere safety-champions fra OpenAI</li>
+        <li><span class="highlight">Claude Code</span> &mdash; per n&aring; lengre frem i agentic coding-tooling</li>
+      </ul>
+    </section>
+
+    <!-- 9. Verktøy -->
+    <section class="slide slide-content">
+      <h2>AI-verkt&oslash;y</h2>
+      <div class="tool-grid">
+        <div class="tool-pill">Cursor</div>
+        <div class="tool-pill">Windsurf</div>
+        <div class="tool-pill featured">Claude Code</div>
+        <div class="tool-pill">Codex (OpenAI)</div>
+        <div class="tool-pill">Crush / Open Code</div>
+        <div class="tool-pill">ChatGPT</div>
+        <div class="tool-pill">Claude Desktop</div>
+        <div class="tool-pill">Ollama (lokal)</div>
+        <div class="tool-pill">GitHub Copilot</div>
+      </div>
+      <p style="margin-top: 1.5rem; font-size: 0.95rem;">
+        <strong>Claude Desktop</strong> &mdash; Planlegging, prosjekter, ikke n&oslash;dvendigvis kodekontekst<br>
+        <strong>Ollama</strong> &mdash; Kj&oslash;r LLM lokalt p&aring; egen maskin
+      </p>
+    </section>
+
+    <!-- 10. Claude Code + MCP -->
+    <section class="slide slide-content">
+      <h2>Claude Code &amp; MCP</h2>
+      <p><strong>Model Context Protocol</strong> &mdash; kommunikasjonsprotokoll som lar AI koble til eksterne verkt&oslash;y og datakilder. En bro mellom AI og den virkelige verden.</p>
+      <p style="font-size: 0.95rem; font-style: italic; color: var(--color-text-muted);">Eksempel: En LLM vet ikke hva klokka er &mdash; MCP l&oslash;ser det.</p>
+      <div class="mcp-list" style="margin-top: 1rem;">
+        <div class="mcp-item"><strong>Context7</strong><span>Oppdatert dokumentasjon for pakker</span></div>
+        <div class="mcp-item"><strong>Serena</strong><span>Lokal filh&aring;ndtering, sparer tokens</span></div>
+        <div class="mcp-item"><strong>Database MCP</strong><span>Koble til og kj&oslash;re queries</span></div>
+        <div class="mcp-item"><strong>Sequential Thinking</strong><span>Hjelper LLM resonere bedre</span></div>
+        <div class="mcp-item"><strong>Playwright MCP</strong><span>Interagere med nettsider / tester</span></div>
+        <div class="mcp-item"><strong>Fetch MCP</strong><span>Hente innhold fra URL-er</span></div>
+      </div>
+    </section>
+
+    <!-- 11. CLAUDE.md -->
+    <section class="slide slide-code">
+      <h2>CLAUDE.md &amp; Dokumentasjon</h2>
+      <p style="color: var(--color-text-muted); margin-bottom: 0.5rem;">Gi Claude kontekst om prosjektet ditt med <span class="highlight">claude init</span></p>
+      <pre><code><span class="comment"># CLAUDE.md &mdash; Prosjektinstruksjoner</span>
+
+<span class="comment">## Kodestil</span>
+<span class="keyword">-</span> <span class="string">Minimal kommentering</span>
+<span class="keyword">-</span> <span class="string">Bruk early returns</span>
+<span class="keyword">-</span> <span class="string">Self-documenting kode</span>
+
+<span class="comment">## Verkt&oslash;y</span>
+<span class="keyword">-</span> Build: <span class="function">npm run build</span>
+<span class="keyword">-</span> Test: <span class="function">npm run test</span>
+<span class="keyword">-</span> Lint: <span class="function">npm run lint</span></code></pre>
+    </section>
+
+    <!-- 12. Subagents -->
+    <section class="slide slide-split">
+      <div class="split-left">
+        <h2>Subagents</h2>
+        <p>Spesialiserte agenter som bevarer kontekst og parallelliserer arbeid</p>
+        <ul>
+          <li>Code Review</li>
+          <li>Testing</li>
+          <li>Frontend (React, UI/UX)</li>
+          <li>Backend (API, microservices)</li>
+          <li>DevOps</li>
+        </ul>
+      </div>
+      <div class="split-right">
+        <h2 style="font-size: 1.3rem;">Bruk</h2>
+        <pre style="background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem; color: var(--color-text); line-height: 1.6;">
+<span style="color: #64748b;">// Delegere til spesialister</span>
+<span style="color: #34d399;">"use subagents to review
+ this PR"</span>
+
+<span style="color: #34d399;">"use the code-reviewer
+ to check security"</span>
+
+<span style="color: #64748b;">// Parallelt</span>
+<span style="color: #34d399;">"run 4 tasks in parallel"</span></pre>
+        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Opptil <span class="highlight">10 sub-agents</span> samtidig</p>
+      </div>
+    </section>
+
+    <!-- 13. Hooks -->
+    <section class="slide slide-code">
+      <h2>Hooks</h2>
+      <p style="color: var(--color-text-muted); margin-bottom: 0.5rem;">Eksekver kode automatisk etter Claude-handlinger</p>
+      <pre><code><span class="comment">// settings.json &mdash; Kj&oslash;r Prettier etter fillagring</span>
+{
+  <span class="string">"hooks"</span>: {
+    <span class="string">"afterWrite"</span>: [
+      {
+        <span class="string">"command"</span>: <span class="string">"npx prettier --write $FILE"</span>,
+        <span class="string">"description"</span>: <span class="string">"Format med Prettier"</span>
+      }
+    ]
+  }
+}</code></pre>
+    </section>
+
+    <!-- 14. Claude Code triks -->
+    <section class="slide slide-content">
+      <h2>Claude Code &mdash; Triks</h2>
+      <ul>
+        <li>Sett opp <span class="highlight">CLAUDE.md</span> og <span class="highlight">settings.json</span> i <code style="color: var(--color-accent);">~/.claude/</code></li>
+        <li>Bruk Claude i et prosjekt en stund, s&aring; be den generere CLAUDE.md</li>
+        <li>Den lager en baseline basert p&aring; dine preferanser</li>
+      </ul>
+      <div class="quote-block" style="margin-top: 1rem;">
+        Enkleste m&aring;ten &aring; starte: kj&oslash;r <code style="color: var(--color-primary-light);">claude init</code> i prosjektet ditt
+      </div>
+    </section>
+
+    <!-- 15. Try it! -->
+    <section class="slide slide-image" style="background-image: url('https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=1920&q=80')">
+      <div class="image-overlay" style="justify-content: center; background: linear-gradient(to top, rgba(2,44,34,0.95) 0%, rgba(2,44,34,0.8) 50%, rgba(2,44,34,0.5) 100%);">
+        <h2 style="margin-bottom: 1.5rem;">Pr&oslash;v det selv!</h2>
+        <div class="idea-grid">
+          <div class="idea-card">
+            <h3>Script</h3>
+            <p>Lag et script for en repetitiv oppgave du gj&oslash;r ofte</p>
+          </div>
+          <div class="idea-card">
+            <h3>Prosjekt</h3>
+            <p>Utf&oslash;r en oppgave p&aring; ditt eget prosjekt</p>
+          </div>
+          <div class="idea-card">
+            <h3>Spill</h3>
+            <p>Lag et enkelt spill fra scratch</p>
+          </div>
+          <div class="idea-card">
+            <h3>Visualisering</h3>
+            <p>Tapt skatt vs. &oslash;kt skatteinntekt? Avatarer og highscore?</p>
+          </div>
+          <div class="idea-card">
+            <h3>Chrome Extension</h3>
+            <p>Automatiser noe du gj&oslash;r ofte i nettleseren</p>
+          </div>
+          <div class="idea-card">
+            <h3>Artifacts</h3>
+            <p>Test Claude Artifacts: <span class="link" style="font-size: 0.8rem;">claude.ai/artifacts</span></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 16. Takk & Ressurser -->
+    <section class="slide slide-content" style="align-items: center; text-align: center;">
+      <h2>Tusen takk!</h2>
+      <p style="max-width: 600px; margin-bottom: 1.5rem;">Takk for en g&oslash;y workshop! Her er ressurser for videre utforskning:</p>
+      <div style="max-width: 600px; width: 100%;">
+        <div class="resource-link">
+          <span class="label">Claude Code Setup</span>
+          github.com/murdahl/ClaudeCodeSetup
+        </div>
+        <div class="resource-link">
+          <span class="label">YouTube Playlist</span>
+          youtube.com/playlist?list=PLFjMIsRc1auIbwDVBQfIeT2SJgAt_TGB3
+        </div>
+      </div>
+      <p style="margin-top: 1.5rem; font-size: 0.9rem; opacity: 0.6;">
+        Min setup er i stadig endring &mdash; MCP-servere p&aring; root/user-niv&aring;. Etter Claude Code 2.0 er behovet for noen MCP-er redusert.
+      </p>
+    </section>
+
+  </div>
+
+  <div class="progress-bar"></div>
+  <div class="slide-counter"></div>
+  <div class="keyboard-hint">Piltaster for navigering &middot; O for oversikt &middot; F for fullskjerm</div>
+
+  <script>
+(() => {
+  const deck = document.querySelector('.deck');
+  const slides = Array.from(deck.querySelectorAll('.slide'));
+  const progressBar = document.querySelector('.progress-bar');
+  const counter = document.querySelector('.slide-counter');
+  const total = slides.length;
+  let current = 0;
+  let overviewMode = false;
+
+  function goTo(n) {
+    if (overviewMode) toggleOverview();
+    const prev = current;
+    current = Math.max(0, Math.min(n, total - 1));
+    slides.forEach((s, i) => {
+      s.classList.remove('active', 'prev');
+      if (i === current) s.classList.add('active');
+      else if (i < current) s.classList.add('prev');
+    });
+    progressBar.style.width = ((current + 1) / total * 100) + '%';
+    counter.textContent = (current + 1) + ' / ' + total;
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+
+  function toggleOverview() {
+    overviewMode = !overviewMode;
+    deck.classList.toggle('overview', overviewMode);
+    if (overviewMode) {
+      slides.forEach((s, i) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'slide-thumb' + (i === current ? ' active' : '');
+        thumb.setAttribute('data-slide-num', i + 1);
+        deck.insertBefore(thumb, s);
+        thumb.appendChild(s);
+        const scale = thumb.offsetWidth / 1920;
+        s.style.transform = 'scale(' + scale + ')';
+      });
+    } else {
+      deck.querySelectorAll('.slide-thumb').forEach(thumb => {
+        const slide = thumb.querySelector('.slide');
+        slide.style.transform = '';
+        deck.insertBefore(slide, thumb);
+        thumb.remove();
+      });
+      goTo(current);
+    }
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+    else if (e.key === 'ArrowUp' || e.key === 'Home') { e.preventDefault(); goTo(0); }
+    else if (e.key === 'ArrowDown' || e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+    else if (e.key === 'Escape' || e.key === 'o') { toggleOverview(); }
+    else if (e.key === 'f') { toggleFullscreen(); }
+    else if (e.key >= '1' && e.key <= '9') { goTo(parseInt(e.key) - 1); }
+  });
+
+  deck.addEventListener('click', (e) => {
+    if (!overviewMode) return;
+    const thumb = e.target.closest('.slide-thumb');
+    if (thumb) {
+      const slide = thumb.querySelector('.slide');
+      goTo(slides.indexOf(slide));
+    }
+  });
+
+  let touchStartX = 0;
+  deck.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; });
+  deck.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) dx > 0 ? prev() : next();
+  });
+
+  goTo(0);
+})();
+  </script>
+</body>
+</html>
