@@ -5,12 +5,16 @@ A custom Claude Code skill that generates single-file HTML slide decks with all 
 ## Features
 
 - Self-contained `.html` files — just open in a browser
-- Full keyboard navigation (arrows, Home/End, number keys)
-- Touch/swipe support
+- Full keyboard, mouse wheel, and touch/swipe navigation
 - Overview mode (press `O`)
 - Fullscreen mode (press `F`)
 - Print/PDF export support
+- Reveal animations with staggered entrance effects
+- Responsive design with height/width breakpoints
+- `prefers-reduced-motion` accessibility support
+- Content density enforcement (no overloaded slides)
 - 5 built-in themes: **dark**, **light**, **warm**, **green**, **fink**
+- 4 style presets: **Bold Signal**, **Neon Cyber**, **Paper & Ink**, **Swiss Modern**
 - Slide types: Title, Content, Split, Code, Embed, Image
 
 ## Installation
@@ -67,11 +71,21 @@ Request a theme by name in your prompt:
 | `green` | Dark green with emerald accents |
 | `fink` | Warm cream with moss teal — includes Fink bird logo |
 
+#### Style Presets
+
+| Preset | Mood | Best For |
+|--------|------|----------|
+| `Bold Signal` | Confident, high-energy | Keynotes, launches, pitches |
+| `Neon Cyber` | Futuristic, techy | Dev talks, hackathons |
+| `Paper & Ink` | Thoughtful, literary | Storytelling, case studies |
+| `Swiss Modern` | Minimal, precise | Data presentations, reports |
+
 ## File Structure
 
 ```
 skills/slidedeck/
 ├── SKILL.md              # Skill instructions and slide engine boilerplate
+├── STYLE_PRESETS.md      # Additional mood-mapped style presets
 └── themes/
     ├── dark.md           # Default dark theme
     ├── light.md          # Light theme overrides
@@ -88,8 +102,8 @@ The skill writes a single `.html` file to the current working directory with a d
 
 | Key | Action |
 |-----|--------|
-| `→` / `Space` | Next slide |
-| `←` | Previous slide |
+| `→` / `Space` / Scroll ↓ | Next slide |
+| `←` / Scroll ↑ | Previous slide |
 | `Home` / `↑` | First slide |
 | `End` / `↓` | Last slide |
 | `O` | Toggle overview |

@@ -34,8 +34,13 @@ Every deck MUST include this core engine. Adapt slide content but keep the engin
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html {
+  scroll-snap-type: y mandatory;
+}
+
 html, body {
   width: 100%; height: 100%;
+  height: 100dvh;
   overflow: hidden;
   font-family: var(--font-body);
   background: var(--color-bg);
@@ -59,7 +64,7 @@ html, body {
   transform: translateX(60px);
   transition: opacity var(--transition), transform var(--transition);
   pointer-events: none;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .slide.active {
@@ -155,6 +160,54 @@ html, body {
   }
   .progress-bar, .slide-counter, .keyboard-hint { display: none !important; }
   .deck.overview { display: block; }
+}
+
+/* Responsive height breakpoints */
+@media (max-height: 700px) {
+  :root { --spacing-xl: 2.5rem; --spacing-lg: 2rem; }
+  .slide-title h1 { font-size: clamp(2rem, 4.5vw, 3.5rem); }
+  .slide-content h2, .slide-split h2 { font-size: clamp(1.4rem, 2.5vw, 2rem); }
+  .slide-content p, .slide-content li { font-size: clamp(0.9rem, 1.3vw, 1.1rem); }
+}
+@media (max-height: 600px) {
+  :root { --spacing-xl: 1.5rem; --spacing-lg: 1.25rem; --spacing-md: 1rem; }
+  .slide-title h1 { font-size: clamp(1.6rem, 4vw, 2.8rem); }
+  .slide-code pre { font-size: clamp(0.7rem, 1vw, 0.85rem); padding: var(--spacing-sm); }
+}
+@media (max-height: 500px) {
+  :root { --spacing-xl: 1rem; --spacing-lg: 0.75rem; --spacing-md: 0.75rem; }
+  .slide-title h1 { font-size: clamp(1.3rem, 3.5vw, 2.2rem); }
+  .slide-title .subtitle { font-size: clamp(0.85rem, 1.5vw, 1.1rem); }
+}
+
+/* Narrow viewports */
+@media (max-width: 600px) {
+  .slide-split { flex-direction: column; gap: var(--spacing-sm); }
+  .slide-content, .slide-code { max-width: 100%; }
+}
+
+/* Reduced motion — accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .slide { transition: none; }
+  .slide.active { transform: none; }
+  .slide.prev { transform: none; }
+  .slide .reveal { opacity: 1 !important; transform: none !important; }
+}
+
+/* Reveal animations — elements stagger in on slide enter */
+.slide .reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.slide .reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 ```
 
@@ -400,6 +453,39 @@ html, body {
     if (Math.abs(dx) > 50) dx > 0 ? prev() : next();
   });
 
+  // Mouse wheel navigation
+  let wheelCooldown = false;
+  deck.addEventListener('wheel', (e) => {
+    if (overviewMode || wheelCooldown) return;
+    e.preventDefault();
+    wheelCooldown = true;
+    if (e.deltaY > 0) next(); else if (e.deltaY < 0) prev();
+    setTimeout(() => { wheelCooldown = false; }, 500);
+  }, { passive: false });
+
+  // Intersection Observer for reveal animations
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) entry.target.classList.add('visible');
+    });
+  }, { threshold: 0.1 });
+
+  function observeReveals() {
+    const activeSlide = slides[current];
+    if (!activeSlide) return;
+    activeSlide.querySelectorAll('.reveal').forEach((el, i) => {
+      el.classList.remove('visible');
+      el.style.transitionDelay = (i * 0.1) + 's';
+      revealObserver.observe(el);
+    });
+  }
+
+  const origGoTo = goTo;
+  goTo = function(n) {
+    origGoTo(n);
+    observeReveals();
+  };
+
   goTo(0);
 })();
 ```
@@ -498,7 +584,7 @@ Wrap everything in this structure:
   </div>
   <div class="progress-bar"></div>
   <div class="slide-counter"></div>
-  <div class="keyboard-hint">Arrow keys to navigate &middot; O for overview &middot; F for fullscreen</div>
+  <div class="keyboard-hint">Arrows / Scroll to navigate &middot; O for overview &middot; F for fullscreen</div>
   <script>/* All JS here */</script>
 </body>
 </html>
@@ -516,6 +602,58 @@ When the user requests a theme other than the default dark theme, read the corre
 - `themes/fink.md` — full Fink theme with font import, CSS overrides, palette reference, and logo SVG
 
 Apply the theme by overriding the CSS variables in the `:root` block and adding any additional styles specified in the theme file.
+
+## Content Density Limits
+
+Each slide type has maximum content to prevent overloading. Enforce these strictly:
+
+| Slide Type | Maximum Content |
+|------------|----------------|
+| **Title** | 1 heading + 1 subtitle + optional meta line |
+| **Content** | 1 heading + 4–6 bullet points (or 2 short paragraphs) |
+| **Split** | 1 heading + 3–4 items per side |
+| **Code** | 1 heading + 8–10 lines of code |
+| **Image** | 1 heading + 1 description line |
+
+If the user's content exceeds these limits, split it across multiple slides rather than cramming it into one.
+
+## Anti-Patterns
+
+Avoid these common mistakes:
+
+- **Bullet walls** — more than 6 bullets per slide makes content unreadable at presentation distance
+- **Scrolling code blocks** — if code doesn't fit in 8–10 lines, extract the key portion or split across slides
+- **Generic gradients** — don't use default linear-gradient backgrounds that don't match the theme
+- **Paragraph slides** — slides are not documents; convert prose to bullet points or visuals
+- **Tiny text** — never use font sizes below `0.8rem` for any visible content
+- **Overloaded split slides** — each side should have at most 3–4 items
+
+## Reveal Animations
+
+Add the `reveal` class to slide child elements for staggered entrance animations. Elements fade up with a 100ms stagger between each:
+
+```html
+<section class="slide slide-content">
+  <h2 class="reveal">Heading</h2>
+  <ul>
+    <li class="reveal">First point</li>
+    <li class="reveal">Second point</li>
+    <li class="reveal">Third point</li>
+  </ul>
+</section>
+```
+
+The JS engine automatically observes `.reveal` elements and adds `.visible` with staggered delays when a slide becomes active. The `prefers-reduced-motion` media query disables these animations for accessibility.
+
+## Style Discovery (Optional)
+
+When the user doesn't specify a theme, offer to generate 3 preview slides — each with a different theme/style — so they can choose before you build the full deck. This is optional: skip if the user already named a theme or said "just build it."
+
+Preview slides should be title slides with the deck's actual title, rendered in 3 different themes. Present them as a single HTML file with the 3 slides navigable, and ask the user to pick one.
+
+## Style Presets
+
+For additional style presets beyond the 5 built-in themes, read `STYLE_PRESETS.md` in this skill directory. It contains mood-mapped presets with font pairings and color palettes.
 
 ## Rules
 

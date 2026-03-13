@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__fetch__imageFetch"
+      "mcp__fetch__imageFetch",
+      "WebFetch(domain:skillsmp.com)"
     ]
   }
 }
